@@ -16,8 +16,11 @@ cask "netbird-ui-linux" do
 
   binary "netbird-ui"
   artifact "netbird-ui.desktop", target: "#{Dir.home}/.local/share/applications/netbird-ui.desktop"
+  artifact "netbird.png", target: "#{HOMEBREW_PREFIX}/share/icons/hicolor/256x256/apps/netbird.png"
+  artifact "netbird.png", target: "#{Dir.home}/.local/share/icons/netbird.png"
 
   preflight do
+    system "curl", "-L", "https://raw.githubusercontent.com/netbirdio/netbird/main/client/ui/assets/netbird.png", "-o", "#{staged_path}/netbird.png"
     FileUtils.mkdir_p "#{Dir.home}/.local/share/applications"
     File.write("#{staged_path}/netbird-ui.desktop", <<~EOS)
       [Desktop Entry]
@@ -30,4 +33,6 @@ cask "netbird-ui-linux" do
       Keywords=netbird;
     EOS
   end
+
+  caveat "Run `sudo semanage fcontext -a -t bin_t '#{prefix}/bin/netbird*'` and `sudo restorecon -RvvF #{prefix}/bin/netbird*`"
 end
