@@ -34,5 +34,5 @@ cask "netbird-ui-linux" do
     EOS
   end
 
-  caveat "Run `sudo semanage fcontext -a -t bin_t '#{prefix}/bin/netbird*'` and `sudo restorecon -RvvF #{prefix}/bin/netbird*`"
+  caveats "Run `sudo semanage fcontext -a -t bin_t '#{HOMEBREW_PREFIX}/Cellar/#{token}/#{version}/bin/netbird*'` and `sudo restorecon -RvvF #{HOMEBREW_PREFIX}/Cellar/#{token}/#{version}/bin/netbird*`"
 end
