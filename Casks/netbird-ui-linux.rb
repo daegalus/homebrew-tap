@@ -16,7 +16,6 @@ cask "netbird-ui-linux" do
 
   binary "netbird-ui"
   artifact "netbird-ui.desktop", target: "#{Dir.home}/.local/share/applications/netbird-ui.desktop"
-  artifact "netbird.png", target: "#{HOMEBREW_PREFIX}/share/icons/hicolor/256x256/apps/netbird.png"
   artifact "netbird.png", target: "#{Dir.home}/.local/share/icons/netbird.png"
 
   preflight do
@@ -35,5 +34,12 @@ cask "netbird-ui-linux" do
     EOS
   end
 
-  caveats "Run `sudo semanage fcontext -a -t bin_t '#{HOMEBREW_PREFIX}/Cellar/#{token}/#{version}/bin/netbird*'` and `sudo restorecon -RvvF #{HOMEBREW_PREFIX}/Cellar/#{token}/#{version}/bin/netbird*`"
+  postflight do
+    #if Dir.home[/^\/var.*$/]
+      #system "noglob", "sudo", "semanage", "fcontext", "-a", "-t", "bin_t", "#{staged_path}/netbird*"
+    system "noglob", "sudo", "semanage", "fcontext", "-a", "-t", "bin_t", "#{staged_path}/netbird*"
+    system "sudo", "restorecon", "-RvvF", "#{staged_path}/netbird*"
+  end
+
+  #caveats "Run `sudo semanage fcontext -a -t bin_t '#{HOMEBREW_PREFIX}/Cellar/#{token}/#{version}/bin/netbird*'` and `sudo restorecon -RvvF #{HOMEBREW_PREFIX}/Cellar/#{token}/#{version}/bin/netbird*`"
 end
