@@ -1,6 +1,6 @@
 cask "netbird-ui-linux" do
-  version "0.58.0"
-  sha256 "aee409a1f8cae6db5051e6867644e42368f1d14970a363f2af7c5e901a0bea00"
+  version "0.59.5"
+  sha256 "2fafb6867dc8080a6cf766a87992b4ce45f911fc3d9b31dbb1c51f047f1fe70d"
 
   url "https://github.com/netbirdio/netbird/releases/download/v#{version}/netbird-ui-linux_#{version}_linux_amd64.tar.gz"
   name "Netbird UI for Linux"
@@ -20,7 +20,8 @@ cask "netbird-ui-linux" do
   artifact "netbird.png", target: "#{Dir.home}/.local/share/icons/netbird.png"
 
   preflight do
-    system "curl", "-L", "https://raw.githubusercontent.com/netbirdio/netbird/main/client/ui/assets/netbird.png", "-o", "#{staged_path}/netbird.png"
+    system "curl", "-L", "https://raw.githubusercontent.com/netbirdio/netbird/main/client/ui/assets/netbird.png",
+           "-o", "#{staged_path}/netbird.png"
     FileUtils.mkdir_p "#{Dir.home}/.local/share/applications"
     File.write("#{staged_path}/netbird-ui.desktop", <<~EOS)
       [Desktop Entry]
