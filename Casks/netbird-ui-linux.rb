@@ -12,8 +12,6 @@ cask "netbird-ui-linux" do
     strategy :github_latest
   end
 
-  auto_updates true
-
   binary "netbird-ui"
   artifact "netbird-ui.desktop", target: "#{Dir.home}/.local/share/applications/netbird-ui.desktop"
   artifact "netbird.png", target: "#{Dir.home}/.local/share/icons/netbird.png"
