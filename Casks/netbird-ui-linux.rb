@@ -1,6 +1,6 @@
 cask "netbird-ui-linux" do
-  version "0.59.5"
-  sha256 "2fafb6867dc8080a6cf766a87992b4ce45f911fc3d9b31dbb1c51f047f1fe70d"
+  version "0.59.11"
+  sha256 "1327ed697ebcc1373e30e2304c79c7b19ce7f6ff295a9ef14400e67d785a6585"
 
   url "https://github.com/netbirdio/netbird/releases/download/v#{version}/netbird-ui-linux_#{version}_linux_amd64.tar.gz"
   name "Netbird UI for Linux"
@@ -35,11 +35,11 @@ cask "netbird-ui-linux" do
   end
 
   postflight do
-    #if Dir.home[/^\/var.*$/]
-      #system "noglob", "sudo", "semanage", "fcontext", "-a", "-t", "bin_t", "#{staged_path}/netbird*"
+    # if Dir.home[/^\/var.*$/]
+    # system "noglob", "sudo", "semanage", "fcontext", "-a", "-t", "bin_t", "#{staged_path}/netbird*"
     system "noglob", "sudo", "semanage", "fcontext", "-a", "-t", "bin_t", "#{staged_path}/netbird*"
     system "sudo", "restorecon", "-RvvF", "#{staged_path}/netbird*"
   end
 
-  #caveats "Run `sudo semanage fcontext -a -t bin_t '#{HOMEBREW_PREFIX}/Cellar/#{token}/#{version}/bin/netbird*'` and `sudo restorecon -RvvF #{HOMEBREW_PREFIX}/Cellar/#{token}/#{version}/bin/netbird*`"
+  # caveats "Run `sudo semanage fcontext -a -t bin_t '#{HOMEBREW_PREFIX}/Cellar/#{token}/#{version}/bin/netbird*'` and `sudo restorecon -RvvF #{HOMEBREW_PREFIX}/Cellar/#{token}/#{version}/bin/netbird*`"
 end
