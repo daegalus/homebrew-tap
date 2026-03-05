@@ -1,6 +1,6 @@
 cask "netbird-ui-linux" do
-  version "0.65.2"
-  sha256 "68a5deb06cd08b7f70e888c192acb31ddb4cfe352c2a82b31d030a67e07b3c2c"
+  version "0.66.2"
+  sha256 "e4486d1d97e9a1250f4af1fd647f86ec025fafb8252ed5f437ba8ab9c9465d01"
 
   url "https://github.com/netbirdio/netbird/releases/download/v#{version}/netbird-ui-linux_#{version}_linux_amd64.tar.gz"
   name "Netbird UI for Linux"
