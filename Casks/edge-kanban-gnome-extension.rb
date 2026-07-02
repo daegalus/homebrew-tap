@@ -1,6 +1,6 @@
 cask "edge-kanban-gnome-extension" do
-  version "26U22.435"
-  sha256 "922fc5c2ac6a93ff48d76eff5fa2502e2dc3846740f8f7340bc1e85b32f92997"
+  version "26U30.427"
+  sha256 "ca3df7caa5943993941a5f3cbfff2b49ce7f785a4c311330b209a1ed130d52a7"
 
   url "https://github.com/daegalus/edge-kanban/releases/download/#{version}/edge-kanban%40yulian.local.shell-extension.zip",
       verified: "github.com/daegalus/edge-kanban/"
