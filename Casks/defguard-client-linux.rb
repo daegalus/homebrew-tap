@@ -3,6 +3,7 @@ cask "defguard-client-linux" do
   os linux: "linux"
 
   version "1.6.8"
+  no_autobump! because: "architecture-specific Linux checksums require manual updates"
 
   on_linux do
     sha256 arm64_linux:  "5ddfdc9f122baa8e895059642644790f52e4a89e60bee687475b491cc96a0174",
