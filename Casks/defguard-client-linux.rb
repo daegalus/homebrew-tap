@@ -4,8 +4,10 @@ cask "defguard-client-linux" do
 
   version "1.6.8"
 
-  sha256 arm64_linux:  "5ddfdc9f122baa8e895059642644790f52e4a89e60bee687475b491cc96a0174",
-         x86_64_linux: "8a5d1e1a60038048071a3d587b264bf6bdf7c9156d98d81097673094104b2ad0"
+  on_linux do
+    sha256 arm64_linux:  "5ddfdc9f122baa8e895059642644790f52e4a89e60bee687475b491cc96a0174",
+           x86_64_linux: "8a5d1e1a60038048071a3d587b264bf6bdf7c9156d98d81097673094104b2ad0"
+  end
 
   url "https://github.com/DefGuard/client/releases/download/v#{version}/defguard-client-#{version}-1.#{arch}.rpm",
       verified: "github.com/DefGuard/client/"
