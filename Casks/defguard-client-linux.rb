@@ -5,6 +5,7 @@ cask "defguard-client-linux" do
 
   on_linux do
     arch arm: "aarch64", intel: "x86_64"
+
     sha256 arm64_linux:  "fd5ef3e251c9f671f61efb1be4f47d3abd25736435a0f7f895e4d4f4f35c1b84",
            x86_64_linux: "b6e9b8b6ec9d6132c29d1538fa46f052cd6d32317112a3dbcb6663631ac6612a"
 
