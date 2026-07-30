@@ -33,10 +33,20 @@ cask "netbird-ui-linux" do
   end
 
   postflight do
-    # if Dir.home[/^\/var.*$/]
-    # system "noglob", "sudo", "semanage", "fcontext", "-a", "-t", "bin_t", "#{staged_path}/netbird*"
+    # Label the UI staged path
     system "noglob", "sudo", "semanage", "fcontext", "-a", "-t", "bin_t", "#{staged_path}/netbird*"
     system "sudo", "restorecon", "-RvvF", "#{staged_path}/netbird*"
+
+    # Label the core daemon if it is installed
+    core_path = "#{HOMEBREW_PREFIX}/Cellar/netbird"
+    if Dir.exist?(core_path)
+      system "noglob", "sudo", "semanage", "fcontext", "-a", "-t", "bin_t", "#{core_path}/.*/bin/netbird"
+      system "sudo", "restorecon", "-RvvF", core_path
+    end
+
+    # Also label the common bin path for netbird symlink
+    system "noglob", "sudo", "semanage", "fcontext", "-a", "-t", "bin_t", "#{HOMEBREW_PREFIX}/bin/netbird"
+    system "sudo", "restorecon", "-vvF", "#{HOMEBREW_PREFIX}/bin/netbird"
   end
 
   # caveats "Run `sudo semanage fcontext -a -t bin_t '#{HOMEBREW_PREFIX}/Cellar/#{token}/#{version}/bin/netbird*'` and `sudo restorecon -RvvF #{HOMEBREW_PREFIX}/Cellar/#{token}/#{version}/bin/netbird*`"
