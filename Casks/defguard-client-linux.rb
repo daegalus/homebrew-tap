@@ -1,30 +1,52 @@
 cask "defguard-client-linux" do
   os linux: "linux"
 
-  version "1.6.9"
+  version "2.1.0-beta1,2.1.0"
 
   on_linux do
     arch arm: "aarch64", intel: "x86_64"
 
-    sha256 arm64_linux:  "fd5ef3e251c9f671f61efb1be4f47d3abd25736435a0f7f895e4d4f4f35c1b84",
-           x86_64_linux: "b6e9b8b6ec9d6132c29d1538fa46f052cd6d32317112a3dbcb6663631ac6612a"
+    sha256 arm64_linux:  "2766d370866380dd6e70342e0855c63705e2286f71e7848379dd3377f47dc766",
+           x86_64_linux: "e6632197f7b6a33d4969f8ca45d24da2775a04102bffcd43c8e07648ec5ee54e"
 
-    url "https://github.com/DefGuard/client/releases/download/v#{version}/defguard-client-#{version}-1.#{arch}.rpm",
+    url "https://github.com/DefGuard/client/releases/download/v#{version.csv.first}/defguard-client-#{version.csv.second}-1.#{arch}.rpm",
         verified: "github.com/DefGuard/client/"
     name "Defguard Client"
     desc "Desktop client for managing WireGuard VPN connections"
-    homepage "https://defguard.net/client/"
+    homepage "https://defguard.net/wireguard-client/"
 
     livecheck do
-      url :url
-      strategy :github_latest
+      url "https://github.com/DefGuard/client/releases"
+      regex(/^v?((\d+(?:\.\d+)+)(?:-(?:alpha|beta|rc)\d*)?)$/i)
+      strategy :github_releases do |json, regex|
+        json.filter_map do |release|
+          next if release["draft"]
+
+          match = release["tag_name"]&.match(regex)
+          next if match.blank?
+
+          "#{match[1]},#{match[2]}"
+        end
+      end
     end
 
     depends_on formula: "libayatana-appindicator"
     depends_on formula: "rpm2cpio"
 
     binary "defguard-client-wrapper", target: "defguard-client"
-    artifact "usr/lib/defguard-client", target: "#{HOMEBREW_PREFIX}/lib/defguard-client"
+    binary "usr/bin/dg"
+    # Directory artifacts call Homebrew's macOS-only xattr copier during Linux reinstalls.
+    %w[
+      tray/blue-connected.png
+      tray/blue.png
+      tray/dark-connected.png
+      tray/dark.png
+      tray/white-connected.png
+      tray/white.png
+    ].each do |icon|
+      artifact "usr/lib/defguard-client/resources/icons/#{icon}",
+               target: "#{HOMEBREW_PREFIX}/lib/defguard-client/resources/icons/#{icon}"
+    end
     artifact "usr/share/applications/defguard-client.desktop",
              target: "#{Dir.home}/.local/share/applications/defguard-client.desktop"
     artifact "usr/share/icons/hicolor/32x32/apps/defguard-client.png",
@@ -35,7 +57,7 @@ cask "defguard-client-linux" do
              target: "#{Dir.home}/.local/share/icons/hicolor/256x256@2/apps/defguard-client.png"
 
     preflight do
-      rpm_path = "#{staged_path}/defguard-client-#{version}-1.#{arch}.rpm"
+      rpm_path = "#{staged_path}/defguard-client-#{version.csv.second}-1.#{arch}.rpm"
       system "sh", "-c", "rpm2cpio '#{rpm_path}' | cpio -idm --quiet", chdir: staged_path
 
       FileUtils.mkdir_p "#{Dir.home}/.local/share/applications"
@@ -123,8 +145,17 @@ cask "defguard-client-linux" do
         bin_pattern = "#{root_bin_dir}(/.*)?"
 
         if semanage
-          added = system "sudo", semanage, "fcontext", "-a", "-t", "bin_t", bin_pattern
-          system "sudo", semanage, "fcontext", "-m", "-t", "bin_t", bin_pattern unless added
+          local_fcontexts = IO.popen([semanage, "fcontext", "-l", "-C"], err: File::NULL, &:read)
+          fcontext_defined = local_fcontexts.lines.any? do |line|
+            line.split(/\s+/, 2).first == bin_pattern
+          end
+
+          if fcontext_defined
+            system "sudo", semanage, "fcontext", "-m", "-t", "bin_t", bin_pattern
+          else
+            added = system "sudo", semanage, "fcontext", "-a", "-t", "bin_t", bin_pattern
+            system "sudo", semanage, "fcontext", "-m", "-t", "bin_t", bin_pattern unless added
+          end
         elsif chcon
           system "sudo", chcon, "-R", "-t", "bin_t", root_bin_dir
         end
@@ -137,13 +168,16 @@ cask "defguard-client-linux" do
 
       if systemctl && Dir.exist?("/run/systemd/system")
         system "sudo", systemctl, "daemon-reload"
-        system "sudo", systemctl, "enable", "--now", "defguard-service.service"
+        system "sudo", systemctl, "enable", "defguard-service.service"
+        system "sudo", systemctl, "restart", "defguard-service.service"
       end
     end
+
     uninstall_preflight do
       root_prefix = "/opt/defguard-client"
       root_bin_dir = "#{root_prefix}/bin"
       systemd_dir = "/etc/systemd/system"
+      service_file = "#{systemd_dir}/defguard-service.service"
 
       getenforce = %w[/usr/sbin/getenforce /usr/bin/getenforce /bin/getenforce].find do |path|
         File.executable?(path)
@@ -155,7 +189,7 @@ cask "defguard-client-linux" do
         File.executable?(path)
       end
 
-      if systemctl && Dir.exist?("/run/systemd/system")
+      if systemctl && Dir.exist?("/run/systemd/system") && File.exist?(service_file)
         system "sudo", systemctl, "disable", "--now", "defguard-service.service"
       end
 
@@ -165,9 +199,16 @@ cask "defguard-client-linux" do
         "Disabled"
       end
 
-      system "sudo", semanage, "fcontext", "-d", "#{root_bin_dir}(/.*)?" if selinux_mode != "Disabled" && semanage
+      if selinux_mode != "Disabled" && semanage
+        bin_pattern = "#{root_bin_dir}(/.*)?"
+        local_fcontexts = IO.popen([semanage, "fcontext", "-l", "-C"], err: File::NULL, &:read)
+        fcontext_defined = local_fcontexts.lines.any? do |line|
+          line.split(/\s+/, 2).first == bin_pattern
+        end
+        system "sudo", semanage, "fcontext", "-d", bin_pattern if fcontext_defined
+      end
 
-      system "sudo", "rm", "-f", "#{systemd_dir}/defguard-service.service"
+      system "sudo", "rm", "-f", service_file
       system "sudo", "rm", "-rf", root_prefix
       system "sudo", systemctl, "daemon-reload" if systemctl && Dir.exist?("/run/systemd/system")
     end

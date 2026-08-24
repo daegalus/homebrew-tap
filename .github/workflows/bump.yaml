@@ -12,6 +12,9 @@ jobs:
       - name: Set up Homebrew
         uses: Homebrew/actions/setup-homebrew@main
 
+      - name: Trust tap
+        run: brew trust --tap "$GITHUB_REPOSITORY"
+
       - name: Configure git
         uses: Homebrew/actions/git-user-config@main
 
