@@ -2,8 +2,7 @@ cask "edge-kanban-gnome-extension" do
   version "26U30.427"
   sha256 "ca3df7caa5943993941a5f3cbfff2b49ce7f785a4c311330b209a1ed130d52a7"
 
-  url "https://github.com/daegalus/edge-kanban/releases/download/#{version}/edge-kanban%40yulian.local.shell-extension.zip",
-      verified: "github.com/daegalus/edge-kanban/"
+  url "https://github.com/daegalus/edge-kanban/releases/download/#{version}/edge-kanban%40yulian.local.shell-extension.zip"
   name "Edge Kanban GNOME Extension"
   desc "Edge-anchored Kanban board for GNOME Shell"
   homepage "https://github.com/daegalus/edge-kanban"
@@ -25,43 +24,24 @@ cask "edge-kanban-gnome-extension" do
   artifact "stylesheet.css", target: "#{extension_dir}/stylesheet.css"
   artifact "schemas", target: "#{extension_dir}/schemas"
 
-  preflight do
-    FileUtils.rm_r extension_dir if File.exist?(extension_dir)
-    FileUtils.mkdir_p extension_dir
+  preflight_steps do
+    remove ".local/share/gnome-shell/extensions/edge-kanban@yulian.local", base: :home, recursive: true
+    mkdir_p ".local/share/gnome-shell/extensions/edge-kanban@yulian.local", base: :home
   end
 
-  postflight do
-    gnome_extensions = %w[
-      /usr/bin/gnome-extensions
-      /bin/gnome-extensions
-    ].find { |path| File.executable?(path) }
-
-    glib_compile_schemas = %w[
-      /usr/bin/glib-compile-schemas
-      /bin/glib-compile-schemas
-    ].find { |path| File.executable?(path) }
-
-    if glib_compile_schemas
-      system glib_compile_schemas, "#{extension_dir}/schemas"
-    else
-      opoo "glib-compile-schemas was not found; schema compilation was skipped"
-    end
-
-    if gnome_extensions
-      system "sh", "-c", "#{gnome_extensions} disable #{extension_uuid} >/dev/null 2>&1 || true"
-      system gnome_extensions, "enable", extension_uuid
-    else
-      opoo "gnome-extensions was not found; enable or reload the extension manually"
-    end
+  postflight_steps do
+    run "glib-compile-schemas",
+        args:           ["schemas"],
+        chdir:          "~/.local/share/gnome-shell/extensions/edge-kanban@yulian.local",
+        writable_paths: [".local/share/gnome-shell/extensions/edge-kanban@yulian.local/schemas"],
+        writable_base:  :home,
+        must_succeed:   false
+    run "gnome-extensions", args: ["disable", "edge-kanban@yulian.local"], must_succeed: false, print_stderr: false
+    run "gnome-extensions", args: ["enable", "edge-kanban@yulian.local"], must_succeed: false
   end
 
-  uninstall_preflight do
-    gnome_extensions = %w[
-      /usr/bin/gnome-extensions
-      /bin/gnome-extensions
-    ].find { |path| File.executable?(path) }
-
-    system "sh", "-c", "#{gnome_extensions} disable #{extension_uuid} >/dev/null 2>&1 || true" if gnome_extensions
+  uninstall_preflight_steps do
+    run "gnome-extensions", args: ["disable", "edge-kanban@yulian.local"], must_succeed: false, print_stderr: false
   end
 
   zap trash: [

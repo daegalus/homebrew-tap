@@ -9,8 +9,7 @@ cask "defguard-client-linux" do
     sha256 arm64_linux:  "2766d370866380dd6e70342e0855c63705e2286f71e7848379dd3377f47dc766",
            x86_64_linux: "e6632197f7b6a33d4969f8ca45d24da2775a04102bffcd43c8e07648ec5ee54e"
 
-    url "https://github.com/DefGuard/client/releases/download/v#{version.csv.first}/defguard-client-#{version.csv.second}-1.#{arch}.rpm",
-        verified: "github.com/DefGuard/client/"
+    url "https://github.com/DefGuard/client/releases/download/v#{version.csv.first}/defguard-client-#{version.csv.second}-1.#{arch}.rpm"
     name "Defguard Client"
     desc "Desktop client for managing WireGuard VPN connections"
     homepage "https://defguard.net/wireguard-client/"
@@ -33,6 +32,78 @@ cask "defguard-client-linux" do
     depends_on formula: "libayatana-appindicator"
     depends_on formula: "rpm2cpio"
 
+    generated_script "defguard-service-control", content: <<~SH
+      #!/bin/sh
+      set -eu
+      PATH=/usr/sbin:/usr/bin:/sbin:/bin
+      export PATH
+
+      root_prefix=/opt/defguard-client
+      root_bin_dir="$root_prefix/bin"
+      service_file=/etc/systemd/system/defguard-service.service
+      bin_pattern="$root_bin_dir(/.*)?"
+      selinux_mode=Disabled
+      if command -v getenforce >/dev/null 2>&1; then
+        selinux_mode=$(getenforce)
+      fi
+
+      case "$1" in
+        install)
+          staged_path=$2
+          installing_user=$3
+          install -d "$root_bin_dir" /etc/systemd/system
+          install -Dm0755 "$staged_path/usr/sbin/defguard-service" "$root_bin_dir/defguard-service"
+          install -Dm0644 "$staged_path/defguard-service.service" "$service_file"
+
+          if ! getent group defguard >/dev/null; then
+            groupadd --system defguard
+          fi
+          if [ -n "$installing_user" ] && getent passwd "$installing_user" >/dev/null; then
+            case " $(id -nG "$installing_user") " in
+              *" defguard "*) ;;
+              *)
+                usermod -a -G defguard "$installing_user"
+                printf 'Added %s to the defguard group; log out and back in before using Defguard\n' "$installing_user"
+                ;;
+            esac
+          fi
+
+          if [ "$selinux_mode" != Disabled ]; then
+            if command -v semanage >/dev/null 2>&1; then
+              semanage fcontext -a -t bin_t "$bin_pattern" || semanage fcontext -m -t bin_t "$bin_pattern"
+            elif command -v chcon >/dev/null 2>&1; then
+              chcon -R -t bin_t "$root_bin_dir"
+            fi
+            if command -v restorecon >/dev/null 2>&1; then
+              restorecon -RFv "$root_prefix"
+              restorecon -Fv "$service_file"
+            fi
+          fi
+
+          if command -v systemctl >/dev/null 2>&1 && [ -d /run/systemd/system ]; then
+            systemctl daemon-reload
+            systemctl enable defguard-service.service
+            systemctl restart defguard-service.service
+          fi
+          ;;
+        uninstall)
+          if command -v systemctl >/dev/null 2>&1 && [ -d /run/systemd/system ] && [ -f "$service_file" ]; then
+            systemctl disable --now defguard-service.service
+          fi
+          if [ "$selinux_mode" != Disabled ] && command -v semanage >/dev/null 2>&1; then
+            if semanage fcontext -l -C 2>/dev/null | awk -v pattern="$bin_pattern" '$1 == pattern { found = 1 } END { exit !found }'; then
+              semanage fcontext -d "$bin_pattern"
+            fi
+          fi
+          rm -f "$service_file"
+          rm -rf "$root_prefix"
+          if command -v systemctl >/dev/null 2>&1 && [ -d /run/systemd/system ]; then
+            systemctl daemon-reload
+          fi
+          ;;
+        *) exit 2 ;;
+      esac
+    SH
     binary "defguard-client-wrapper", target: "defguard-client"
     binary "usr/bin/dg"
     # Directory artifacts call Homebrew's macOS-only xattr copier during Linux reinstalls.
@@ -56,161 +127,54 @@ cask "defguard-client-linux" do
     artifact "usr/share/icons/hicolor/256x256@2/apps/defguard-client.png",
              target: "#{Dir.home}/.local/share/icons/hicolor/256x256@2/apps/defguard-client.png"
 
-    preflight do
-      rpm_path = "#{staged_path}/defguard-client-#{version.csv.second}-1.#{arch}.rpm"
-      system "sh", "-c", "rpm2cpio '#{rpm_path}' | cpio -idm --quiet", chdir: staged_path
+    preflight_steps do
+      # Expand the RPM filename at install time, including Defguard's split tag/package version.
+      run "/bin/sh",
+          args:        ["-c", 'exec "$1" ./*.rpm', "--", "{{HOMEBREW_PREFIX}}/opt/rpm2cpio/bin/rpm2cpio"],
+          chdir:       ".",
+          stdout_path: "payload.cpio"
+      run "/usr/bin/cpio", args: ["-idm", "--quiet"], stdin_path: "payload.cpio", chdir: "."
+      remove "payload.cpio"
 
-      FileUtils.mkdir_p "#{Dir.home}/.local/share/applications"
-      FileUtils.mkdir_p "#{Dir.home}/.local/share/icons/hicolor/32x32/apps"
-      FileUtils.mkdir_p "#{Dir.home}/.local/share/icons/hicolor/128x128/apps"
-      FileUtils.mkdir_p "#{Dir.home}/.local/share/icons/hicolor/256x256@2/apps"
-      FileUtils.mkdir_p "#{HOMEBREW_PREFIX}/lib"
+      mkdir_p ".local/share/applications", base: :home
+      mkdir_p ".local/share/icons/hicolor/32x32/apps", base: :home
+      mkdir_p ".local/share/icons/hicolor/128x128/apps", base: :home
+      mkdir_p ".local/share/icons/hicolor/256x256@2/apps", base: :home
+      mkdir_p "{{HOMEBREW_PREFIX}}/lib"
 
-      desktop_file = "#{staged_path}/usr/share/applications/defguard-client.desktop"
-      desktop_content = File.read(desktop_file)
-      desktop_content.gsub!(/^Exec=.*/, "Exec=#{HOMEBREW_PREFIX}/bin/defguard-client %U")
-      desktop_content.gsub!(/^Name=.*/, "Name=Defguard")
-      File.write(desktop_file, desktop_content)
+      inreplace "usr/share/applications/defguard-client.desktop", /^Exec=.*/,
+                "Exec={{HOMEBREW_PREFIX}}/bin/defguard-client %U"
+      inreplace "usr/share/applications/defguard-client.desktop", /^Name=.*/, "Name=Defguard"
 
-      appindicator_lib = "#{HOMEBREW_PREFIX}/opt/libayatana-appindicator/lib/libayatana-appindicator3.so.1"
-      appindicator_lib_dir = "#{staged_path}/appindicator-lib"
-      FileUtils.mkdir_p appindicator_lib_dir
-      FileUtils.ln_sf appindicator_lib, "#{appindicator_lib_dir}/libayatana-appindicator3.so.1"
-      FileUtils.ln_sf appindicator_lib, "#{appindicator_lib_dir}/libayatana-appindicator3.so"
+      mkdir_p "appindicator-lib"
+      symlink "{{HOMEBREW_PREFIX}}/opt/libayatana-appindicator/lib/libayatana-appindicator3.so.1",
+              "appindicator-lib/libayatana-appindicator3.so.1", overwrite: true
+      symlink "{{HOMEBREW_PREFIX}}/opt/libayatana-appindicator/lib/libayatana-appindicator3.so.1",
+              "appindicator-lib/libayatana-appindicator3.so", overwrite: true
 
-      File.write("#{staged_path}/defguard-client-wrapper", <<~EOS)
+      write_file "defguard-client-wrapper", <<~EOS
         #!/bin/sh
-        export LD_LIBRARY_PATH="#{appindicator_lib_dir}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
-        exec "#{staged_path}/usr/bin/defguard-client" "$@"
+        export LD_LIBRARY_PATH="{{staged_path}}/appindicator-lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+        exec "{{staged_path}}/usr/bin/defguard-client" "$@"
       EOS
-      set_permissions("#{staged_path}/defguard-client-wrapper", "755")
+      set_permissions "defguard-client-wrapper", "755"
+
+      copy "lib/systemd/system/defguard-service.service", "defguard-service.service"
+      inreplace "defguard-service.service",
+                "ExecStart=/usr/sbin/defguard-service",
+                "ExecStart=/opt/defguard-client/bin/defguard-service"
     end
 
-    postflight do
-      group_name = "defguard"
-      root_prefix = "/opt/defguard-client"
-      root_bin_dir = "#{root_prefix}/bin"
-      systemd_dir = "/etc/systemd/system"
-
-      getenforce = %w[/usr/sbin/getenforce /usr/bin/getenforce /bin/getenforce].find do |path|
-        File.executable?(path)
-      end
-      restorecon = %w[/usr/sbin/restorecon /usr/bin/restorecon /bin/restorecon].find do |path|
-        File.executable?(path)
-      end
-      semanage = %w[/usr/sbin/semanage /usr/bin/semanage /bin/semanage].find do |path|
-        File.executable?(path)
-      end
-      chcon = %w[/usr/sbin/chcon /usr/bin/chcon /bin/chcon].find do |path|
-        File.executable?(path)
-      end
-      systemctl = %w[/usr/bin/systemctl /bin/systemctl].find do |path|
-        File.executable?(path)
-      end
-
-      ohai "Installing Defguard service payload under #{root_prefix}"
-
-      system "sudo", "install", "-d", root_bin_dir, systemd_dir
-      system "sudo", "install", "-Dm0755",
-             "#{staged_path}/usr/sbin/defguard-service",
-             "#{root_bin_dir}/defguard-service"
-
-      service_file = File.read("#{staged_path}/lib/systemd/system/defguard-service.service")
-      service_file.gsub!("ExecStart=/usr/sbin/defguard-service", "ExecStart=#{root_bin_dir}/defguard-service")
-      File.write("#{staged_path}/defguard-service.service", service_file)
-      system "sudo", "install", "-Dm0644",
-             "#{staged_path}/defguard-service.service",
-             "#{systemd_dir}/defguard-service.service"
-
-      group_exists = !IO.popen(["getent", "group", group_name], &:read).strip.empty?
-      system "sudo", "groupadd", "--system", group_name unless group_exists
-
-      installing_user = ENV.fetch("SUDO_USER", nil)
-      installing_user = ENV.fetch("USER", nil) if installing_user.to_s.empty? || installing_user == "root"
-      if installing_user.present? && IO.popen(["getent", "passwd", installing_user], &:read).present?
-        user_groups = IO.popen(["id", "-nG", installing_user], &:read).split
-        unless user_groups.include?(group_name)
-          system "sudo", "usermod", "-a", "-G", group_name, installing_user
-          ohai "Added #{installing_user} to the #{group_name} group; log out and back in before using Defguard"
-        end
-      end
-
-      selinux_mode = if getenforce
-        IO.popen([getenforce], &:read).strip
-      else
-        "Disabled"
-      end
-
-      if selinux_mode != "Disabled"
-        bin_pattern = "#{root_bin_dir}(/.*)?"
-
-        if semanage
-          local_fcontexts = IO.popen([semanage, "fcontext", "-l", "-C"], err: File::NULL, &:read)
-          fcontext_defined = local_fcontexts.lines.any? do |line|
-            line.split(/\s+/, 2).first == bin_pattern
-          end
-
-          if fcontext_defined
-            system "sudo", semanage, "fcontext", "-m", "-t", "bin_t", bin_pattern
-          else
-            added = system "sudo", semanage, "fcontext", "-a", "-t", "bin_t", bin_pattern
-            system "sudo", semanage, "fcontext", "-m", "-t", "bin_t", bin_pattern unless added
-          end
-        elsif chcon
-          system "sudo", chcon, "-R", "-t", "bin_t", root_bin_dir
-        end
-
-        if restorecon
-          system "sudo", restorecon, "-RFv", root_prefix
-          system "sudo", restorecon, "-Fv", "#{systemd_dir}/defguard-service.service"
-        end
-      end
-
-      if systemctl && Dir.exist?("/run/systemd/system")
-        system "sudo", systemctl, "daemon-reload"
-        system "sudo", systemctl, "enable", "defguard-service.service"
-        system "sudo", systemctl, "restart", "defguard-service.service"
-      end
+    postflight_steps do
+      run "defguard-service-control",
+          args:         ["install", "{{staged_path}}", "{{user}}"],
+          base:         :staged_path,
+          sudo:         true,
+          print_stdout: true
     end
 
-    uninstall_preflight do
-      root_prefix = "/opt/defguard-client"
-      root_bin_dir = "#{root_prefix}/bin"
-      systemd_dir = "/etc/systemd/system"
-      service_file = "#{systemd_dir}/defguard-service.service"
-
-      getenforce = %w[/usr/sbin/getenforce /usr/bin/getenforce /bin/getenforce].find do |path|
-        File.executable?(path)
-      end
-      semanage = %w[/usr/sbin/semanage /usr/bin/semanage /bin/semanage].find do |path|
-        File.executable?(path)
-      end
-      systemctl = %w[/usr/bin/systemctl /bin/systemctl].find do |path|
-        File.executable?(path)
-      end
-
-      if systemctl && Dir.exist?("/run/systemd/system") && File.exist?(service_file)
-        system "sudo", systemctl, "disable", "--now", "defguard-service.service"
-      end
-
-      selinux_mode = if getenforce
-        IO.popen([getenforce], &:read).strip
-      else
-        "Disabled"
-      end
-
-      if selinux_mode != "Disabled" && semanage
-        bin_pattern = "#{root_bin_dir}(/.*)?"
-        local_fcontexts = IO.popen([semanage, "fcontext", "-l", "-C"], err: File::NULL, &:read)
-        fcontext_defined = local_fcontexts.lines.any? do |line|
-          line.split(/\s+/, 2).first == bin_pattern
-        end
-        system "sudo", semanage, "fcontext", "-d", bin_pattern if fcontext_defined
-      end
-
-      system "sudo", "rm", "-f", service_file
-      system "sudo", "rm", "-rf", root_prefix
-      system "sudo", systemctl, "daemon-reload" if systemctl && Dir.exist?("/run/systemd/system")
+    uninstall_preflight_steps do
+      run "defguard-service-control", args: ["uninstall"], base: :staged_path, sudo: true
     end
 
     zap trash: [

@@ -16,14 +16,16 @@ cask "netbird-ui-linux" do
   artifact "netbird-ui.desktop", target: "#{Dir.home}/.local/share/applications/netbird-ui.desktop"
   artifact "netbird.png", target: "#{Dir.home}/.local/share/icons/netbird.png"
 
-  preflight do
-    system "curl", "-L", "https://raw.githubusercontent.com/netbirdio/netbird/main/client/ui/assets/netbird.png",
-           "-o", "#{staged_path}/netbird.png"
-    FileUtils.mkdir_p "#{Dir.home}/.local/share/applications"
-    File.write("#{staged_path}/netbird-ui.desktop", <<~EOS)
+  preflight_steps do
+    run "/usr/bin/curl",
+        args:           ["--fail", "--location", "https://raw.githubusercontent.com/netbirdio/netbird/main/client/ui/assets/netbird.png"],
+        stdout_path:    "netbird.png",
+        network_access: true
+    mkdir_p ".local/share/applications", base: :home
+    write_file "netbird-ui.desktop", <<~EOS
       [Desktop Entry]
       Name=Netbird
-      Exec=#{HOMEBREW_PREFIX}/bin/netbird-ui
+      Exec={{HOMEBREW_PREFIX}}/bin/netbird-ui
       Icon=netbird
       Type=Application
       Terminal=false
@@ -32,21 +34,29 @@ cask "netbird-ui-linux" do
     EOS
   end
 
-  postflight do
-    # Label the UI staged path
-    system "noglob", "sudo", "semanage", "fcontext", "-a", "-t", "bin_t", "#{staged_path}/netbird*"
-    system "sudo", "restorecon", "-RvvF", "#{staged_path}/netbird*"
+  postflight_steps do
+    # Label the UI staged path.
+    run "semanage",
+        args:         ["fcontext", "-a", "-t", "bin_t", "{{staged_path}}/netbird.*"],
+        sudo:         true,
+        must_succeed: false
+    run "restorecon", args: ["-RvvF", "{{staged_path}}"], sudo: true, must_succeed: false
 
-    # Label the core daemon if it is installed
-    core_path = "#{HOMEBREW_PREFIX}/Cellar/netbird"
-    if Dir.exist?(core_path)
-      system "noglob", "sudo", "semanage", "fcontext", "-a", "-t", "bin_t", "#{core_path}/.*/bin/netbird"
-      system "sudo", "restorecon", "-RvvF", core_path
+    # Label the core daemon if it is installed.
+    if_path_exists "{{HOMEBREW_CELLAR}}/netbird" do
+      run "semanage",
+          args:         ["fcontext", "-a", "-t", "bin_t", "{{HOMEBREW_CELLAR}}/netbird/.*/bin/netbird"],
+          sudo:         true,
+          must_succeed: false
+      run "restorecon", args: ["-RvvF", "{{HOMEBREW_CELLAR}}/netbird"], sudo: true, must_succeed: false
     end
 
-    # Also label the common bin path for netbird symlink
-    system "noglob", "sudo", "semanage", "fcontext", "-a", "-t", "bin_t", "#{HOMEBREW_PREFIX}/bin/netbird"
-    system "sudo", "restorecon", "-vvF", "#{HOMEBREW_PREFIX}/bin/netbird"
+    # Also label the common bin path for the netbird symlink.
+    run "semanage",
+        args:         ["fcontext", "-a", "-t", "bin_t", "{{HOMEBREW_PREFIX}}/bin/netbird"],
+        sudo:         true,
+        must_succeed: false
+    run "restorecon", args: ["-vvF", "{{HOMEBREW_PREFIX}}/bin/netbird"], sudo: true, must_succeed: false
   end
 
   # caveats "Run `sudo semanage fcontext -a -t bin_t '#{HOMEBREW_PREFIX}/Cellar/#{token}/#{version}/bin/netbird*'` and `sudo restorecon -RvvF #{HOMEBREW_PREFIX}/Cellar/#{token}/#{version}/bin/netbird*`"
