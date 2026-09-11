@@ -1,7 +1,7 @@
 cask "defguard-client-linux" do
   os linux: "linux"
 
-  version "2.1.0,2.1.0"
+  version "2.1.0"
 
   on_linux do
     arch arm: "aarch64", intel: "x86_64"
@@ -9,24 +9,14 @@ cask "defguard-client-linux" do
     sha256 arm64_linux:  "bca69c8b5b14e4b19c65b6f334bf2a54e7354175b591ca55ed02df53a9596c9b",
            x86_64_linux: "9f81b002337c07b5deef848022508f7a05f62208a66ff49a2d965346bef4e4db"
 
-    url "https://github.com/DefGuard/client/releases/download/v#{version.csv.first}/defguard-client-#{version.csv.second}-1.#{arch}.rpm"
+    url "https://github.com/DefGuard/client/releases/download/v#{version}/defguard-client-#{version}-1.#{arch}.rpm"
     name "Defguard Client"
     desc "Desktop client for managing WireGuard VPN connections"
     homepage "https://defguard.net/wireguard-client/"
 
     livecheck do
-      url "https://github.com/DefGuard/client/releases"
-      regex(/^v?((\d+(?:\.\d+)+)(?:-(?:alpha|beta|rc)\d*)?)$/i)
-      strategy :github_releases do |json, regex|
-        json.filter_map do |release|
-          next if release["draft"]
-
-          match = release["tag_name"]&.match(regex)
-          next if match.blank?
-
-          "#{match[1]},#{match[2]}"
-        end
-      end
+      url :url
+      strategy :github_latest
     end
 
     depends_on formula: "libayatana-appindicator"
@@ -128,14 +118,16 @@ cask "defguard-client-linux" do
              target: "#{Dir.home}/.local/share/icons/hicolor/256x256@2/apps/defguard-client.png"
 
     preflight_steps do
-      # Expand the RPM filename at install time, including Defguard's split tag/package version.
-      run "/bin/sh",
-          args:        ["-c", 'exec "$1" ./*.rpm', "--", "{{HOMEBREW_PREFIX}}/opt/rpm2cpio/bin/rpm2cpio"],
-          chdir:       ".",
+      run "{{HOMEBREW_PREFIX}}/opt/rpm2cpio/bin/rpm2cpio",
+          args:        ["{{staged_path}}/defguard-client-{{version}}-1.{{arch}}.rpm"],
           stdout_path: "payload.cpio"
       run "/usr/bin/cpio", args: ["-idm", "--quiet"], stdin_path: "payload.cpio", chdir: "."
       remove "payload.cpio"
+      copy "lib/systemd/system/defguard-service.service", "defguard-service.service"
+    end
 
+    # The inreplace targets must exist before this sandbox prepares write permissions.
+    preflight_steps do
       mkdir_p ".local/share/applications", base: :home
       mkdir_p ".local/share/icons/hicolor/32x32/apps", base: :home
       mkdir_p ".local/share/icons/hicolor/128x128/apps", base: :home
@@ -159,7 +151,6 @@ cask "defguard-client-linux" do
       EOS
       set_permissions "defguard-client-wrapper", "755"
 
-      copy "lib/systemd/system/defguard-service.service", "defguard-service.service"
       inreplace "defguard-service.service",
                 "ExecStart=/usr/sbin/defguard-service",
                 "ExecStart=/opt/defguard-client/bin/defguard-service"
