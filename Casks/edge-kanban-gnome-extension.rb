@@ -14,6 +14,8 @@ cask "edge-kanban-gnome-extension" do
     end
   end
 
+  depends_on :linux
+
   extension_uuid = "edge-kanban@yulian.local"
   extension_dir = "#{Dir.home}/.local/share/gnome-shell/extensions/#{extension_uuid}"
 

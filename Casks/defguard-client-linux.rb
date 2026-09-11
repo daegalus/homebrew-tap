@@ -195,4 +195,6 @@ cask "defguard-client-linux" do
       support from your Linux distribution.
     EOS
   end
+
+  depends_on :linux
 end

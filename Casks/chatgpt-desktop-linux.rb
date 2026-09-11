@@ -109,4 +109,6 @@ cask "chatgpt-desktop-linux" do
       This Linux app cannot be paired as a host for Remote Control.
     EOS
   end
+
+  depends_on :linux
 end

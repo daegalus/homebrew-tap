@@ -12,6 +12,9 @@ cask "netbird-ui-linux" do
     strategy :github_latest
   end
 
+  depends_on arch: :x86_64
+  depends_on :linux
+
   binary "netbird-ui"
   artifact "netbird-ui.desktop", target: "#{Dir.home}/.local/share/applications/netbird-ui.desktop"
   artifact "netbird.png", target: "#{Dir.home}/.local/share/icons/netbird.png"
