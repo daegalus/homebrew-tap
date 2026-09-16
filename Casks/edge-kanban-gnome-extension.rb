@@ -1,6 +1,9 @@
 cask "edge-kanban-gnome-extension" do
-  version "26U30.427"
-  sha256 "ca3df7caa5943993941a5f3cbfff2b49ce7f785a4c311330b209a1ed130d52a7"
+  version "26S11.500"
+
+  on_linux do
+    sha256 "bfb9a29f32daf7ade705188bbce0d50fafe901608a2efaaf48f2523de614031c"
+  end
 
   url "https://github.com/daegalus/edge-kanban/releases/download/#{version}/edge-kanban%40yulian.local.shell-extension.zip"
   name "Edge Kanban GNOME Extension"
@@ -9,6 +12,7 @@ cask "edge-kanban-gnome-extension" do
 
   livecheck do
     url "https://github.com/daegalus/edge-kanban.git"
+    # scripts/bump.py compares these tags with `earthdate compare`.
     strategy :github_latest do |json, _regex|
       json["tag_name"]
     end

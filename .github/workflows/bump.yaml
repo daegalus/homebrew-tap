@@ -18,9 +18,14 @@ jobs:
       - name: Configure git
         uses: Homebrew/actions/git-user-config@main
 
+      - name: Install Earthdate
+        run: cargo install --git https://github.com/daegalus/earthdate --branch master --locked --root "$RUNNER_TEMP/earthdate"
+
       - name: Bump packages
         env:
           HOMEBREW_DEVELOPER: 1
           HOMEBREW_GITHUB_API_TOKEN: ${{ secrets.GHA_PAT }}
+          GH_TOKEN: ${{ secrets.GHA_PAT }}
         run: |
-          brew bump --tap ${{ github.repository }} --open-pr --no-fork
+          python3 scripts/bump.py --tap "$GITHUB_REPOSITORY" --open-pr --no-fork \
+            --earthdate "$RUNNER_TEMP/earthdate/bin/earthdate"
