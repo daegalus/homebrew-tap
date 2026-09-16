@@ -8,9 +8,8 @@ require "dev-cmd/bump-cask-pr"
 Utils::GemSetup.install_bundler_gems!(groups: ["ast"]) # rubocop:disable Homebrew/InstallBundlerGems
 require "utils/ast"
 
-cask_dir = Pathname(ARGV.fetch(0, File.expand_path("../Casks", __dir__)))
 %w[netbird-ui-linux edge-kanban-gnome-extension].each do |token|
-  cask = Cask::CaskLoader.load(cask_dir/"#{token}.rb")
+  cask = Cask::CaskLoader.load("#{ENV.fetch("GITHUB_REPOSITORY", "daegalus/tap")}/#{token}")
   next_version = "#{cask.version}.test"
   command = Homebrew::DevCmd::BumpCaskPr.new([
     "--write-only", "--no-audit", "--no-style", "--version=#{next_version}", cask.full_name
