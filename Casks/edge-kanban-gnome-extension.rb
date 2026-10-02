@@ -31,23 +31,10 @@ cask "edge-kanban-gnome-extension" do
   artifact "schemas", target: "#{extension_dir}/schemas"
 
   preflight_steps do
-    remove ".local/share/gnome-shell/extensions/edge-kanban@yulian.local", base: :home, recursive: true
-    mkdir_p ".local/share/gnome-shell/extensions/edge-kanban@yulian.local", base: :home
-  end
-
-  postflight_steps do
     run "glib-compile-schemas",
-        args:           ["schemas"],
-        chdir:          "~/.local/share/gnome-shell/extensions/edge-kanban@yulian.local",
-        writable_paths: [".local/share/gnome-shell/extensions/edge-kanban@yulian.local/schemas"],
-        writable_base:  :home,
-        must_succeed:   false
-    run "gnome-extensions", args: ["disable", "edge-kanban@yulian.local"], must_succeed: false, print_stderr: false
-    run "gnome-extensions", args: ["enable", "edge-kanban@yulian.local"], must_succeed: false
-  end
-
-  uninstall_preflight_steps do
-    run "gnome-extensions", args: ["disable", "edge-kanban@yulian.local"], must_succeed: false, print_stderr: false
+        args:           ["--strict", "schemas"],
+        chdir:          "{{staged_path}}",
+        writable_paths: ["schemas"]
   end
 
   zap trash: [
@@ -59,7 +46,12 @@ cask "edge-kanban-gnome-extension" do
     Edge Kanban is installed to:
       #{extension_dir}
 
-    If GNOME Shell was not running during install, enable it with:
+    Enable it from a terminal in your GNOME desktop session:
       gnome-extensions enable #{extension_uuid}
+
+    If GNOME Shell does not recognize the extension, log out and back in first.
+    After upgrading, log out and back in to load the updated extension.
+    Before uninstalling, disable it with:
+      gnome-extensions disable #{extension_uuid}
   EOS
 end
