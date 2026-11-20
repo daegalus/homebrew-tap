@@ -1,11 +1,11 @@
 cask "juggler-linux" do
-  version "0.7.4"
+  version "0.7.5"
 
   on_linux do
     arch arm: "arm64", intel: "amd64"
 
-    sha256 arm64_linux:  "35eb16e137f6dbbd0bf369a7f1f2d10f9a50e79a0645b97a0bc1865c5f2c3746",
-           x86_64_linux: "fd04c811a6cef9fc862eacdce969b7df7d665e4f0a048aa9703670515d0d9331"
+    sha256 arm64_linux:  "650b7397d8b985eb18d344c900b4b08f3c0927a67598400a5ad7b35c53a6721a",
+           x86_64_linux: "1e4c070f3009b1d4f164fc34861875eb0dcfc43b419b744a075edb99902567f6"
   end
 
   url "https://github.com/juggler-ai/juggler/releases/download/v#{version}/juggler-linux-#{arch}.tar.gz"
