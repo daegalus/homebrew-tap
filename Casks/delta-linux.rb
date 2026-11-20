@@ -1,11 +1,11 @@
 cask "delta-linux" do
-  version "0.18.1"
+  version "0.28.4"
 
   on_linux do
     arch arm: "aarch64", intel: "x86_64"
 
-    sha256 arm64_linux:  "7d0c5d9781a5adb0abed6f950b538894880886c36228e0a1a8364e94bde02cd0",
-           x86_64_linux: "4e4df21e989e8137cfb42402acbb26c574de21a0f7616d3116ebfa48d75ca718"
+    sha256 arm64_linux:  "d5b7db028a6c7768d56acdf4c56d0655823b4b1cd4dcc2cafe34b8ee2cb9303d",
+           x86_64_linux: "9f8a1043b517ceae505eb12770755f7a0423bbe97b56baee3c29013017bbca03"
   end
 
   url "https://github.com/zed-industries/delta-nix/releases/download/v#{version}/delta-linux-#{arch}.tar.gz"
