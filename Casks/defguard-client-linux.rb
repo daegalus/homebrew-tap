@@ -1,13 +1,13 @@
 cask "defguard-client-linux" do
   os linux: "linux"
 
-  version "2.1.2"
+  version "2.2.0"
 
   on_linux do
     arch arm: "aarch64", intel: "x86_64"
 
-    sha256 arm64_linux:  "455d7a55edad30dcb1fdfae2436f08d3fd09eef71cc470e0ef0df6d11039da66",
-           x86_64_linux: "7cdfe027fb40e015abc5dc0c95bc2c61d986194c321b44900e1b186b1fce3518"
+    sha256 arm64_linux:  "0adad7b0100516e28b96241fcdbff4ec2ff5177eb2015f47a36f4bed1b73addd",
+           x86_64_linux: "8ff91092ef1469ba6193f72dfc066d2bb4f61d7bd8acdb1a8261658bb0866079"
 
     url "https://github.com/DefGuard/client/releases/download/v#{version}/defguard-client-#{version}-1.#{arch}.rpm"
     name "Defguard Client"
